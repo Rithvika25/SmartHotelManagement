@@ -1,8 +1,7 @@
 ﻿using SmartHotelBookingSystem.BusinessLogicLayer;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-using Newtonsoft.Json;
 using SmartHotelBookingSystem.Models;
+using System.Collections.Generic;
 using System.Data;
 using SmartHotelBookingSystem.DataAccess.ADO;
 
@@ -21,19 +20,16 @@ namespace HotelAPI.Controllers
 
         // GET: api/Room
         [HttpGet]
-        public ActionResult<IEnumerable<Room_New>> GetRooms()
+        public ActionResult<IEnumerable<Room>> GetRooms()
         {
             try
             {
                 var dataTable = _roomBLL.FetchAllActiveRooms();
 
                 if (dataTable == null || dataTable.Rows.Count == 0)
-                {
                     return NotFound("No rooms found in the database.");
-                }
 
-                var roomList = _roomBLL.ConvertDataTableToList(dataTable);
-
+                var roomList = _roomBLL.ConvertDataTableToList(dataTable); // Fix: Convert to List<Room>
                 return Ok(roomList);
             }
             catch (Exception ex)
@@ -42,51 +38,38 @@ namespace HotelAPI.Controllers
             }
         }
 
-        // GET: api/Room/{id}
-        [HttpGet("{id}")]
-        public ActionResult<Room_New> GetRoomById(int id)
-        {
-            try
-            {
-                var dataTable = _roomBLL.FetchAllActiveRooms();
+        // GET: api/Room/{id} (Fetch Room by RoomID)
+        //[HttpGet("{id}")]
+        //public ActionResult<Room> GetRoomById(int id)
+        //{
+        //    try
+        //    {
+        //        var dataTable = _roomBLL.(id); // Fix: Fetch Room by RoomID
 
-                if (dataTable == null || dataTable.Rows.Count == 0)
-                {
-                    return NotFound($"Room with ID {id} not found.");
-                }
+        //        if (dataTable == null || dataTable.Rows.Count == 0)
+        //            return NotFound($"Room with ID {id} not found.");
 
-                var roomList = _roomBLL.ConvertDataTableToList(dataTable);
-                var room = roomList.Find(r => r.RoomID == id);
-
-                if (room == null)
-                {
-                    return NotFound($"Room with ID {id} not found.");
-                }
-
-                return Ok(room);
-            }
-            catch (Exception ex)
-            {
-                return StatusCode(500, $"Internal server error: {ex.Message}");
-            }
-        }
+        //        var roomList = _roomBLL.ConvertDataTableToList(dataTable);
+        //        return Ok(roomList[0]); // Return single room object
+        //    }
+        //    catch (Exception ex)
+        //    {
+        //        return StatusCode(500, $"Internal server error: {ex.Message}");
+        //    }
+        //}
 
         // POST: api/Room
         [HttpPost]
-        public ActionResult CreateRoom([FromBody] Room_New newRoom)
+        public ActionResult CreateRoom([FromBody] Room newRoom)
         {
             try
             {
                 int result = _roomBLL.InsertRoom(newRoom);
 
                 if (result > 0)
-                {
                     return Ok("Room created successfully.");
-                }
                 else
-                {
                     return BadRequest("Failed to create room.");
-                }
             }
             catch (Exception ex)
             {
@@ -96,7 +79,7 @@ namespace HotelAPI.Controllers
 
         // PUT: api/Room/{id}
         [HttpPut("{id}")]
-        public ActionResult UpdateRoom(int id, [FromBody] Room_New updatedRoom)
+        public ActionResult UpdateRoom(int id, [FromBody] Room updatedRoom)
         {
             try
             {
@@ -104,13 +87,9 @@ namespace HotelAPI.Controllers
                 int result = _roomBLL.UpdateRoom(updatedRoom);
 
                 if (result > 0)
-                {
                     return Ok("Room updated successfully.");
-                }
                 else
-                {
                     return NotFound($"Room with ID {id} not found.");
-                }
             }
             catch (Exception ex)
             {
@@ -124,17 +103,12 @@ namespace HotelAPI.Controllers
         {
             try
             {
-                var room = new Room_New { RoomID = id };
-                var dataTable = _roomBLL.DeleteRoom(room);
+                int deleteStatus = _roomBLL.DeleteRoom(id);
 
-                if (dataTable != null)
-                {
+                if (deleteStatus > 0)
                     return Ok("Room deleted successfully.");
-                }
                 else
-                {
                     return NotFound($"Room with ID {id} not found.");
-                }
             }
             catch (Exception ex)
             {
@@ -142,21 +116,37 @@ namespace HotelAPI.Controllers
             }
         }
 
+        [HttpPut("updateAvailability/{roomID}")]
+        public IActionResult UpdateRoomAvailability(int roomID)
+        {
+            if (roomID <= 0)
+            {
+                return BadRequest("Invalid Room ID.");
+            }
+
+            var result = _roomBLL.UpdateRoomAvailabilityToBooked(roomID);
+
+            if (result > 0)
+            {
+                return Ok(new { message = $"Room {roomID} has been successfully booked." });
+            }
+            else
+            {
+                return StatusCode(500, $"Failed to update room {roomID}. Please try again.");
+            }
+        }
         // GET: api/Room/Hotel/{hotelID}
         [HttpGet("Hotel/{hotelID}")]
-        public ActionResult<IEnumerable<Room_New>> GetRoomsByHotel(int hotelID)
+        public ActionResult<IEnumerable<Room>> GetRoomsByHotel(int hotelID)
         {
             try
             {
                 var dataTable = _roomBLL.FetchRoomsByHotel(hotelID);
 
                 if (dataTable == null || dataTable.Rows.Count == 0)
-                {
                     return NotFound($"No rooms found for Hotel ID {hotelID}.");
-                }
 
-                var roomList = _roomBLL.ConvertDataTableToList(dataTable);
-
+                var roomList = _roomBLL.ConvertDataTableToList(dataTable); // Fix: Convert to List<Room>
                 return Ok(roomList);
             }
             catch (Exception ex)
@@ -164,34 +154,7 @@ namespace HotelAPI.Controllers
                 return StatusCode(500, $"Internal server error: {ex.Message}");
             }
         }
-
-        // GET: api/Room/Type/{type}/Hotel/{hotelID}
-        // GET: api/Room/Type/{type}/Hotel/{hotelID}
-        // GET: api/Room/Type/{type}/Hotel/{hotelID}
-        // GET: api/Room/Type/{type}/Hotel/{hotelID}
-        [HttpGet("Type/{type}/Hotel/{hotelID}")]
-        public ActionResult<IEnumerable<Room_New>> GetRoomsByTypeAndLocation(string type, int hotelID)
-        {
-            try
-            {
-                var dataTable = _roomBLL.FetchRoomsByTypeAndLocation(type, hotelID);
-
-                if (dataTable == null || dataTable.Rows.Count == 0)
-                {
-                    return NotFound($"No rooms of type {type} found for Hotel ID {hotelID}.");
-                }
-
-                var roomList = _roomBLL.ConvertDataTableToList(dataTable);
-
-                return Ok(roomList);
-            }
-            catch (Exception ex)
-            {
-                return StatusCode(500, $"Internal server error: {ex.Message}");
-            }
-        }
-
-
-
     }
 }
+
+

@@ -1,4 +1,4 @@
-using Microsoft.AspNetCore.Authentication.JwtBearer;
+﻿using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -95,8 +95,19 @@ namespace HotelAPI
                     }
                 });
             });
+            builder.Services.AddCors(options =>
+            {
+                options.AddPolicy("AllowFrontend",
+                    policy =>
+                    {
+                        policy.WithOrigins("*") // ✅ Allow your Angular app
+                              .AllowAnyMethod()
+                              .AllowAnyHeader();
+                    });
+            });
 
-            var app = builder.Build();
+
+           var app = builder.Build();
 
             // Configure the HTTP request pipeline.
             if (app.Environment.IsDevelopment())
@@ -108,6 +119,7 @@ namespace HotelAPI
                 });
             }
 
+            app.UseCors("AllowFrontend");
             app.UseHttpsRedirection();
             app.UseAuthentication();
             app.UseAuthorization();

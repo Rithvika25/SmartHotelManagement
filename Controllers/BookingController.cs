@@ -2,8 +2,10 @@
 using Microsoft.AspNetCore.Mvc;
 using SmartHotelBookingSystem.BusinessLogicLayer;
 using SmartHotelBookingSystem.Models;
+using SmartHotelBookingSystem.DTOs;
 using System;
 using System.Collections.Generic;
+using Newtonsoft.Json;
 
 namespace SmartHotelBookingSystem.Controllers
 {
@@ -19,7 +21,7 @@ namespace SmartHotelBookingSystem.Controllers
         }
 
         [HttpPost]
-        public IActionResult AddBooking([FromBody] Booking booking)
+        public IActionResult AddBooking([FromBody] BookingDTO booking)
         {
             if (booking == null)
                 return BadRequest("Invalid booking data.");
@@ -27,6 +29,7 @@ namespace SmartHotelBookingSystem.Controllers
             _repository.AddBooking(booking);
             return Ok("Booking added successfully.");
         }
+
 
         [HttpGet]
         public ActionResult<List<Booking>> GetAllBookings()
@@ -36,14 +39,31 @@ namespace SmartHotelBookingSystem.Controllers
         }
 
         [HttpGet("{id}")]
-        public ActionResult<List<Booking>> GetBookingsByBookingID(int id)
+        public IActionResult GetRecentBookings(int id)
         {
             var bookings = _repository.GetBookingsByBookingID(id);
-            if (bookings == null || bookings.Count == 0)
-                return NotFound("No booking found.");
 
-            return Ok(bookings);
+            if (bookings == null || bookings.Count == 0)
+            {
+                return NotFound("No recent bookings found for this user.");
+            }
+
+            return Ok(JsonConvert.SerializeObject(bookings, Formatting.Indented));
         }
+
+        [HttpGet("recentBookings/{id}")] // ✅ Unique route
+        public IActionResult GetRecentBookingsOfUser(int id)
+        {
+            var bookings = _repository.GetRecentBookings(id);
+
+            if (bookings == null || bookings.Rows.Count == 0) // ✅ Properly checks for empty data
+            {
+                return NotFound("No recent bookings found for this user.");
+            }
+
+            return Ok(JsonConvert.SerializeObject(bookings, Formatting.Indented));
+        }
+
 
         [HttpPut("{id}")]
         public IActionResult UpdateBooking(int id, [FromBody] DateTime checkInDate)
@@ -72,5 +92,19 @@ namespace SmartHotelBookingSystem.Controllers
                 return NotFound(ex.Message);
             }
         }
+
+        [HttpGet("getBookingId/{userId}/{roomId}/{hotelId}")]
+        public IActionResult GetBookingId(int userId, int roomId, int hotelId)
+        {
+            int? bookingId = _repository.GetBookingId(userId, roomId, hotelId);
+
+            if (bookingId == null)
+            {
+                return NotFound("No booking found for the given criteria.");
+            }
+
+            return Ok(new { BookingID = bookingId });
+        }
+
     }
 }
