@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 
 namespace SmartHotelBookingSystem.Models
 {
-    public class Room_New
+    public class Room
     {
         [Key]
         public int RoomID { get; set; }
@@ -17,6 +17,9 @@ namespace SmartHotelBookingSystem.Models
         public string Availability { get; set; }
         public string Features { get; set; }
         public bool IsActive { get; set; }
+        public string ImageURL { get; set; }
+
+        public virtual Hotel Hotel { get; set; } // Navigation property
 
     }
 }

@@ -17,268 +17,168 @@ namespace SmartHotelBookingSystem.BusinessLogicLayer
 
         #region RoomTable
 
-        public int InsertRoom(Room_New room)
+        public int InsertRoom(Room room)
         {
-            string insertQuery = @"INSERT INTO [dbo].[Room_New]
-                                    (
-                                    [HotelID]
-                                    ,[Type]
-                                    ,[Price]
-                                    ,[Availability]
-                                    ,[Features]
-                                    ,[IsActive])
-                                    VALUES                                     
-                                    (
-                                    @HotelID
-                                    ,@Type
-                                    ,@Price
-                                    ,@Availability
-                                    ,@Features
-                                    ,@IsActive)";
+            string insertQuery = @"INSERT INTO [dbo].[Room]
+                                   ([HotelID], [Type], [Price], [Availability], [Features], [IsActive], [ImageURL])
+                                   VALUES (@HotelID, @Type, @Price, @Availability, @Features, @IsActive, @ImageURL)";
 
-            nameValuePairList nvp = new nameValuePairList();
-            nvp.Add(new nameValuePair("@HotelID", room.HotelID));
-            nvp.Add(new nameValuePair("@Type", room.Type));
-            nvp.Add(new nameValuePair("@Price", room.Price));
-            nvp.Add(new nameValuePair("@Availability", room.Availability));
-            nvp.Add(new nameValuePair("@Features", room.Features));
-            nvp.Add(new nameValuePair("@IsActive", room.IsActive));
-
-            int insertStatus = 0;
+            nameValuePairList nvp = new nameValuePairList
+            {
+                new nameValuePair("@HotelID", room.HotelID),
+                new nameValuePair("@Type", room.Type),
+                new nameValuePair("@Price", room.Price),
+                new nameValuePair("@Availability", room.Availability),
+                new nameValuePair("@Features", room.Features),
+                new nameValuePair("@IsActive", room.IsActive),
+                new nameValuePair("@ImageURL", room.ImageURL)
+            };
 
             try
             {
-                insertStatus = _dalObject.InsertUpdateOrDelete(insertQuery, nvp, false);
+                return _dalObject.InsertUpdateOrDelete(insertQuery, nvp, false);
             }
             catch (Exception exp)
             {
-                Console.WriteLine("Error: " + exp.Message);
+                Console.WriteLine("Error inserting room: " + exp.Message);
+                return 0;
             }
-
-            return insertStatus;
         }
 
-        public int UpdateRoom(Room_New room)
+        public int UpdateRoom(Room room)
         {
-            string updateQuery = @"UPDATE [dbo].[Room_New]
-                            SET
-                            [HotelID]=@HotelID,
-                            [Type] = @Type
-                            ,[Price] = @Price
-                            ,[Availability] = @Availability
-                            ,[Features] = @Features
-                            ,[IsActive] = @IsActive
-                            WHERE [RoomID] = @RoomID";
+            string updateQuery = @"UPDATE [dbo].[Room]
+                                   SET [HotelID]=@HotelID,
+                                       [Type] = @Type,
+                                       [Price] = @Price,
+                                       [Availability] = @Availability,
+                                       [Features] = @Features,
+                                       [IsActive] = @IsActive,
+                                       [ImageURL] = @ImageURL
+                                   WHERE [RoomID] = @RoomID";
 
-            nameValuePairList nvp = new nameValuePairList();
-            nvp.Add(new nameValuePair("@HotelID", room.HotelID));
-            nvp.Add(new nameValuePair("@Type", room.Type));
-            nvp.Add(new nameValuePair("@Price", room.Price));
-            nvp.Add(new nameValuePair("@Availability", room.Availability));
-            nvp.Add(new nameValuePair("@Features", room.Features));
-            nvp.Add(new nameValuePair("@IsActive", room.IsActive));
-            nvp.Add(new nameValuePair("@RoomID", room.RoomID));
-
-            int updateStatus = 0;
+            nameValuePairList nvp = new nameValuePairList
+            {
+                new nameValuePair("@HotelID", room.HotelID),
+                new nameValuePair("@Type", room.Type),
+                new nameValuePair("@Price", room.Price),
+                new nameValuePair("@Availability", room.Availability),
+                new nameValuePair("@Features", room.Features),
+                new nameValuePair("@IsActive", room.IsActive),
+                new nameValuePair("@ImageURL", room.ImageURL),
+                new nameValuePair("@RoomID", room.RoomID)
+            };
 
             try
             {
-                updateStatus = _dalObject.InsertUpdateOrDelete(updateQuery, nvp, false);
-                Console.WriteLine("Update Status: " + updateStatus);
+                return _dalObject.InsertUpdateOrDelete(updateQuery, nvp, false);
             }
             catch (Exception exp)
             {
-                Console.WriteLine("Error: " + exp.Message);
+                Console.WriteLine("Error updating room: " + exp.Message);
+                return 0;
             }
-
-            return updateStatus;
         }
 
-
-        public DataTable DeleteRoom(Room_New room)
+        public int DeleteRoom(int roomID)
         {
-            string deleteRoomQuery = @"UPDATE [dbo].[Room_New]
-                        SET [IsActive] = 0
-                        WHERE [RoomID] = @RoomID";
+            string deleteRoomQuery = @"UPDATE [dbo].[Room]
+                                       SET [IsActive] = 0
+                                       WHERE [RoomID] = @RoomID";
 
-            nameValuePairList nvp = new nameValuePairList();
-            nvp.Add(new nameValuePair("@RoomID", room.RoomID));
-
-            int deleteStatus = 0;
+            nameValuePairList nvp = new nameValuePairList
+            {
+                new nameValuePair("@RoomID", roomID)
+            };
 
             try
             {
-                deleteStatus = _dalObject.InsertUpdateOrDelete(deleteRoomQuery, nvp, false);
-                Console.WriteLine("Delete Status: " + deleteStatus);
+                return _dalObject.InsertUpdateOrDelete(deleteRoomQuery, nvp, false);
             }
             catch (Exception exp)
             {
-                Console.WriteLine("Error: " + exp.Message);
+                Console.WriteLine("Error deleting room: " + exp.Message);
+                return 0;
             }
+        }
 
-            if (deleteStatus > 0)
+        public DataTable FetchAllActiveRooms()
+        {
+            string fetchQuery = @"SELECT * FROM [dbo].[Room] WHERE [IsActive] = 1";
+
+            try
             {
-                string fetchRoomsQuery = @"SELECT
-                             [RoomID],
-                             [HotelID],
-                             [Type],
-                             [Price],
-                             [Availability],
-                             [Features],
-                             [IsActive]
-                            FROM [dbo].[Room_New]
-                            WHERE [IsActive] = 1";
-
-                DataTable dt = _dalObject.FetchData(fetchRoomsQuery);
-                Console.WriteLine("Fetched Rows: " + (dt != null ? dt.Rows.Count : 0));
-                return dt;
+                return _dalObject.FetchData(fetchQuery);
             }
-            else
+            catch (Exception exp)
             {
+                Console.WriteLine("Error fetching rooms: " + exp.Message);
                 return null;
             }
         }
 
-
-        //public DataTable SearchRoom(string type)
-        //{
-        //    string searchRoomQuery = @"SELECT [RoomID],
-        //                                   [HotelID],
-        //                                   [Type],
-        //                                   [Price],
-        //                                   [Availability],
-        //                                   [Features],
-        //                                   [IsActive]
-        //                       FROM [dbo].[Room_New] 
-        //                       WHERE [Type] LIKE '%' + @Type + '%'";
-
-        //    nameValuePairList nvp = new nameValuePairList();
-        //    nvp.Add(new nameValuePair("@Type", type));
-
-        //    DataTable dt = _dalObject.FillAndReturnDataTable(searchRoomQuery, nvp);
-        //    return dt;
-        //}
-
-        //public DataTable UpdateFeatures(Room_New room)
-        //{
-        //    string updateFeaturesQuery = @"UPDATE [dbo].[Room_New]
-        //                            SET [Features] = @Features
-        //                            WHERE [RoomID] = @RoomID and IsActive = 1";
-
-        //    nameValuePairList nvp = new nameValuePairList();
-        //    nvp.Add(new nameValuePair("@Features", room.Features));
-        //    nvp.Add(new nameValuePair("@RoomID", room.RoomID));
-
-        //    DataTable dt = _dalObject.FillAndReturnDataTable(updateFeaturesQuery, nvp);
-        //    return dt;
-        //}
-
-        public DataTable FetchAllActiveRooms()
-        {
-            string fetchAllActiveRoomsQuery = @"SELECT
-                                                 [RoomID],
-                                                 [HotelID],
-                                                 [Type],
-                                                 [Price],
-                                                 [Availability],
-                                                 [Features],
-                                                 [IsActive]
-                                                FROM [dbo].[Room_New]
-                                                WHERE [IsActive] = 1";
-
-            DataTable dt = null;
-
-            try
-            {
-                dt = _dalObject.FetchData(fetchAllActiveRoomsQuery);
-            }
-            catch (Exception exp)
-            {
-                Console.WriteLine("Error: " + exp.Message);
-            }
-
-            return dt;
-        }
-        #endregion
-
-
         public DataTable FetchRoomsByHotel(int hotelID)
         {
-            string fetchRoomsQuery = @"SELECT RoomID, IsActive
-                                        FROM Room_New
-                                        WHERE HotelID = @HotelID AND IsActive = 1";
+            string query = @"SELECT RoomID, HotelID, Type, Price, Availability, Features, IsActive, ImageURL
+                     FROM [dbo].[Room]
+                     WHERE HotelID = @HotelID AND IsActive = 1";
 
-            nameValuePairList nvp = new nameValuePairList();
-            nvp.Add(new nameValuePair("@HotelID", hotelID));
-
-            DataTable dt = null;
-
-            try
-            {
-                dt = _dalObject.FillAndReturnDataTable(fetchRoomsQuery, nvp);
-            }
-            catch (Exception exp)
-            {
-                Console.WriteLine("Error: " + exp.Message);
-            }
-
-            return dt;
-        }
-        public DataTable FetchRoomsByTypeAndLocation(string type, int hotelID)
-        {
-            string fetchRoomsByTypeAndLocationQuery = @"SELECT
-                                                 r.[RoomID],
-                                                 r.[HotelID],
-                                                 r.[Type],
-                                                 r.[Price],
-                                                 r.[Availability],
-                                                 r.[Features],
-                                                 r.[IsActive],
-                                                 h.[Name] AS HotelName,
-                                                 h.[Location]
-                                                FROM [dbo].[Room_New] r
-                                                INNER JOIN [dbo].[Hotels] h ON r.[HotelID] = h.[HotelID]
-                                                WHERE r.[Type] = @Type AND r.[HotelID] = @HotelID AND r.[IsActive] = 1";
-
-            nameValuePairList nvp = new nameValuePairList();
-            nvp.Add(new nameValuePair("@Type", type));
-            nvp.Add(new nameValuePair("@HotelID", hotelID));
-
-            DataTable dt = null;
+            var nvp = new nameValuePairList
+    {
+        new nameValuePair("@HotelID", hotelID) // Fix: Ensure parameter is correctly declared
+    };
 
             try
             {
-                Console.WriteLine($"Executing query with Type: {type}, HotelID: {hotelID}");
-                dt = _dalObject.FillAndReturnDataTable(fetchRoomsByTypeAndLocationQuery, nvp);
-                Console.WriteLine($"Fetched Rows for Type {type} and HotelID {hotelID}: " + (dt != null ? dt.Rows.Count : 0));
+                return _dalObject.FetchData(query, nvp); // Fetch data using DB1 class
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error fetching rooms for Hotel ID {hotelID}: {ex.Message}");
+                return null; // Return null in case of error
+            }
+        }
+        public int UpdateRoomAvailabilityToBooked(int roomID)
+        {
+            string updateQuery = @"UPDATE [dbo].[Room]
+                           SET [Availability] = 'Booked'
+                           WHERE [RoomID] = @RoomID";
+
+            nameValuePairList nvp = new nameValuePairList
+            {
+                 new nameValuePair("@RoomID", roomID)
+            };
+
+            try
+            {
+                return _dalObject.InsertUpdateOrDelete(updateQuery, nvp, false);
             }
             catch (Exception exp)
             {
-                Console.WriteLine("Error: " + exp.Message);
+                Console.WriteLine($"Error updating room availability for Room ID {roomID}: {exp.Message}");
+                return 0;
             }
-
-            return dt;
         }
 
-
-
-        public List<Room_New> ConvertDataTableToList(DataTable dataTable)
+        public List<Room> ConvertDataTableToList(DataTable dataTable)
         {
-            var roomList = new List<Room_New>();
+            var roomList = new List<Room>();
 
             foreach (DataRow row in dataTable.Rows)
             {
                 try
                 {
-                    var room = new Room_New
+                    var room = new Room
                     {
                         RoomID = row.Field<int?>("RoomID") ?? 0,
                         HotelID = row.Field<int?>("HotelID") ?? 0,
                         Type = row.Field<string>("Type") ?? string.Empty,
-                        Price = (float)(row.Field<double?>("Price") ?? 0),
+
+                        Price = (float)(row.Field<Double?>("Price") ?? 0),
                         Availability = row.Field<string>("Availability") ?? string.Empty,
                         Features = row.Field<string>("Features") ?? string.Empty,
-                        IsActive = row.Field<bool?>("IsActive") ?? false
+                        IsActive = row.Field<bool?>("IsActive") ?? false,
+                        ImageURL = row.Field<string>("ImageURL") ?? string.Empty
                     };
 
                     roomList.Add(room);
@@ -293,9 +193,7 @@ namespace SmartHotelBookingSystem.BusinessLogicLayer
         }
 
     }
+
+    #endregion
 }
-
-
-
-
 

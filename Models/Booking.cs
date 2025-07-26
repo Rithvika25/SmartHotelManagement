@@ -8,6 +8,7 @@ namespace SmartHotelBookingSystem.Models
 {
     public class Booking
     {
+
         public int BookingID { get; set; }          
         public int UserID { get; set; }           
         public int RoomID { get; set; }           

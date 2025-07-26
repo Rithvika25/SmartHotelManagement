@@ -14,6 +14,7 @@ namespace SmartHotelBookingSystem.DTOs
         public string Amenities { get; set; }
         public double Rating { get; set; }
         public bool IsActive { get; set; }
+        public string ImageURL { get; set; }
 
     }
 }

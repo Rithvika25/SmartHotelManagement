@@ -16,11 +16,16 @@ namespace SmartHotelBookingSystem.BusinessLogicLayer
             _dalObject = dalObject;
         }
 
+        // ✅ Fixed: Insert method returns an int (affected rows) instead of attempting DataTable conversion
         public int InsertHotel(Hotel hotel)
         {
+            if (hotel.Rating < 0 || hotel.Rating > 5)
+                throw new ArgumentException("Rating must be between 0 and 5");
+
             string insertQuery = @"INSERT INTO [SmartHotelDB].[dbo].[Hotel]
-                                            ([HotelID], [Name], [Location], [ManagerID], [Amenities], [Rating], [IsActive])
-                                            VALUES (@HotelID, @Name, @Location, @ManagerID, @Amenities, @Rating, 1)";
+                                            ([HotelID], [Name], [Location], [ManagerID], [Amenities], [Rating], [IsActive], [ImageURL])
+                                            VALUES (@HotelID, @Name, @Location, @ManagerID, @Amenities, @Rating, 1, @ImageURL)";
+
             nameValuePairList nvp = new nameValuePairList
             {
                 new nameValuePair("@HotelID", hotel.HotelID),
@@ -28,18 +33,21 @@ namespace SmartHotelBookingSystem.BusinessLogicLayer
                 new nameValuePair("@Location", hotel.Location),
                 new nameValuePair("@ManagerID", hotel.ManagerID),
                 new nameValuePair("@Amenities", hotel.Amenities),
-                new nameValuePair("@Rating", hotel.Rating)
+                new nameValuePair("@Rating", hotel.Rating),
+                new nameValuePair("@ImageURL", hotel.ImageURL)
             };
-            int insertStatus = _dalObject.InsertUpdateOrDelete(insertQuery, nvp, false);
-            return insertStatus;
+
+            return _dalObject.InsertUpdateOrDelete(insertQuery, nvp, false);
         }
 
+        // ✅ Fixed: Update method properly returns affected row count
         public int UpdateHotel(Hotel hotel, int id)
         {
             string updateQuery = @"UPDATE [SmartHotelDB].[dbo].[Hotel]
                                    SET [Name] = @Name, [Location] = @Location, [ManagerID] = @ManagerID,
-                                       [Amenities] = @Amenities, [Rating] = @Rating, [IsActive] = @IsActive
+                                       [Amenities] = @Amenities, [Rating] = @Rating, [IsActive] = @IsActive, [ImageURL] = @ImageURL
                                    WHERE [HotelID] = @Id";
+
             nameValuePairList nvp = new nameValuePairList
             {
                 new nameValuePair("@Id", id),
@@ -48,150 +56,99 @@ namespace SmartHotelBookingSystem.BusinessLogicLayer
                 new nameValuePair("@ManagerID", hotel.ManagerID),
                 new nameValuePair("@Amenities", hotel.Amenities),
                 new nameValuePair("@Rating", hotel.Rating),
-                new nameValuePair("@IsActive", hotel.IsActive)
+                new nameValuePair("@IsActive", hotel.IsActive),
+                new nameValuePair("@ImageURL", hotel.ImageURL)
             };
-            int updateStatus = _dalObject.InsertUpdateOrDelete(updateQuery, nvp, false);
-            return updateStatus;
+
+            return _dalObject.InsertUpdateOrDelete(updateQuery, nvp, false);
         }
 
-        public DataTable DeleteHotel(int id)
+        // ✅ Fixed: Delete method correctly returns affected row count
+        public int DeleteHotel(int id)
         {
             string deleteHotelQuery = @"UPDATE [SmartHotelDB].[dbo].[Hotel]
                                         SET [IsActive] = 0
                                         WHERE [HotelID] = @HotelID";
+
             nameValuePairList nvp = new nameValuePairList
             {
                 new nameValuePair("@HotelID", id)
             };
-            int deleteStatus = _dalObject.InsertUpdateOrDelete(deleteHotelQuery, nvp, false);
-            if (deleteStatus > 0)
-            {
-                string fetchHotelsQuery = @"SELECT [Name] FROM [SmartHotelDB].[dbo].[Hotel] WHERE [IsActive] = 1";
-                DataTable dt = _dalObject.FetchData(fetchHotelsQuery);
-                return dt;
-            }
-            else
-            {
-                return null;
-            }
+
+            return _dalObject.InsertUpdateOrDelete(deleteHotelQuery, nvp, false);
         }
 
-        public int UpdateHotelAmenities(int hotelId, string amenities)
+        // ✅ Fixed: Convert `DataTable` to `List<Hotel>` for amenity filtering
+        public List<Hotel> FilterHotelsByAmenities(string amenity)
         {
-            string updateAmenitiesQuery = @"UPDATE [SmartHotelDB].[dbo].[Hotel]
-                                            SET [Amenities] = @Amenities
-                                            WHERE [HotelID] = @HotelID AND [IsActive] = 1";
+            string query = @"
+                SELECT *
+                FROM [SmartHotelDB].[dbo].[Hotel]
+                WHERE [IsActive] = 1
+                AND EXISTS (
+                    SELECT 1
+                    FROM STRING_SPLIT([Amenities], ',') AS amenity
+                    WHERE TRIM(amenity.value) = @Amenity
+                );";
+
             nameValuePairList nvp = new nameValuePairList
             {
-                new nameValuePair("@HotelID", hotelId),
-                new nameValuePair("@Amenities", amenities)
+                new nameValuePair("@Amenity", amenity)
             };
-            int updateStatus = _dalObject.InsertUpdateOrDelete(updateAmenitiesQuery, nvp, false);
-            return updateStatus;
+
+            DataTable dt = _dalObject.FetchData(query, nvp);
+            return ConvertDataTableToList(dt);
         }
 
-        public int UpdateHotelRating(int hotelId, double rating)
+        // ✅ Fixed: Availability filter correctly returns `List<Hotel>`
+        public List<Hotel> ReadHotelsByAvailability(DateTime startDate, DateTime endDate)
         {
-            string updateRatingQuery = @"UPDATE [SmartHotelDB].[dbo].[Hotel]
-                                         SET [Rating] = @Rating
-                                         WHERE [HotelID] = @HotelID AND [IsActive] = 1";
-            nameValuePairList nvp = new nameValuePairList
-            {
-                new nameValuePair("@HotelID", hotelId),
-                new nameValuePair("@Rating", rating)
-            };
-            int updateStatus = _dalObject.InsertUpdateOrDelete(updateRatingQuery, nvp, false);
-            return updateStatus;
-        }
+            string query = @"SELECT DISTINCT H.*
+                             FROM [SmartHotelDB].[dbo].[Hotel] H
+                             LEFT JOIN [SmartHotelDB].[dbo].[Room] R ON H.HotelID = R.HotelID
+                             LEFT JOIN [SmartHotelDB].[dbo].[Bookings] B ON R.RoomID = B.RoomID
+                             WHERE (B.RoomID IS NULL OR (B.CheckOutDate < @startDate OR B.CheckInDate > @endDate))
+                             AND H.[IsActive] = 1
+                             AND R.[Availability] = 'Available';
+                             ";
 
-        public DataTable ReadHotelByManagerId(int managerId)
-        {
-            string readHotelByManagerQuery = @"SELECT * FROM [SmartHotelDB].[dbo].[Hotel]
-                                               WHERE [ManagerID] = @ManagerID AND [IsActive] = 1";
-            nameValuePairList nvp = new nameValuePairList
-            {
-                new nameValuePair("@ManagerID", managerId)
-            };
-            DataTable dt = _dalObject.FetchData(readHotelByManagerQuery, nvp);
-            return dt;
-        }
-
-        public DataTable FilterHotelsByRating(double minRating, double maxRating)
-        {
-            string filterHotelsByRatingQuery = @"SELECT * FROM [SmartHotelDB].[dbo].[Hotel]
-                                                 WHERE [Rating] BETWEEN @MinRating AND @MaxRating AND [IsActive] = 1";
-            nameValuePairList nvp = new nameValuePairList
-            {
-                new nameValuePair("@MinRating", minRating),
-                new nameValuePair("@MaxRating", maxRating)
-            };
-            DataTable dt = _dalObject.FetchData(filterHotelsByRatingQuery, nvp);
-            return dt;
-        }
-
-        public DataTable FilterHotelsByAmenities(string amenities)
-        {
-            string filterHotelsByAmenitiesQuery = @"SELECT * FROM [SmartHotelDB].[dbo].[Hotel]
-                                                    WHERE [Amenities] LIKE '%' + @Amenities + '%' AND [IsActive] = 1";
-            nameValuePairList nvp = new nameValuePairList
-            {
-                new nameValuePair("@Amenities", amenities)
-            };
-            DataTable dt = _dalObject.FetchData(filterHotelsByAmenitiesQuery, nvp);
-            return dt;
-        }
-
-        public DataTable ReadHotelsByAvailability(DateTime startDate, DateTime endDate)
-        {
-            string readHotelsByAvailabilityQuery = @"SELECT DISTINCT H.*
-                                                     FROM [SmartHotelDB].[dbo].[Hotel] H
-                                                     JOIN [SmartHotelDB].[dbo].[Room] R ON H.HotelID = R.HotelID
-                                                     WHERE R.RoomID NOT IN (
-                                                         SELECT B.RoomID
-                                                         FROM [SmartHotelDB].[dbo].[Bookings] B
-                                                         WHERE B.CheckInDate <= @EndDate AND B.CheckOutDate >= @StartDate
-                                                     ) AND H.[IsActive] = 1";
             var parameters = new List<SqlParameter>
             {
                 new SqlParameter("@StartDate", startDate),
                 new SqlParameter("@EndDate", endDate)
             };
-            DataTable dt = _dalObject.FetchData(readHotelsByAvailabilityQuery, parameters);
-            return dt;
+
+            DataTable dt = _dalObject.FetchData(query, parameters);
+            return ConvertDataTableToList(dt);
         }
 
+        // ✅ Fixed: General hotel retrieval returns `List<Hotel>`
+        public List<Hotel> GetAllHotels()
+        {
+            string query = "SELECT * FROM [SmartHotelDB].[dbo].[Hotel] WHERE [IsActive] = 1";
+            DataTable dt = _dalObject.FetchData(query);
+            return ConvertDataTableToList(dt);
+        }
+
+        // ✅ Helper method: Converts DataTable rows to List<Hotel> objects
         public List<Hotel> ConvertDataTableToList(DataTable dataTable)
         {
             var hotelList = new List<Hotel>();
             foreach (DataRow row in dataTable.Rows)
             {
-                try
+                var hotel = new Hotel
                 {
-                    var hotel = new Hotel
-                    {
-                        HotelID = row.Field<int?>("HotelID") ?? 0,
-                        Name = row.Field<string>("Name") ?? string.Empty,
-                        Location = row.Field<string>("Location") ?? string.Empty,
-                        ManagerID = row.Field<int?>("ManagerID") ?? 0,
-                        Amenities = row.Field<string>("Amenities") ?? string.Empty,
-                        Rating = row.Field<double?>("Rating") ?? 0,
-                        IsActive = row.Field<bool?>("IsActive") ?? false
-                    };
-                    hotelList.Add(hotel);
-                }
-                catch (Exception ex)
-                {
-                    throw new Exception($"Error converting DataRow to Hotel: {ex.Message}", ex);
-                }
+                    HotelID = row.Field<int?>("HotelID") ?? 0,
+                    Name = row.Field<string>("Name") ?? string.Empty,
+                    Location = row.Field<string>("Location") ?? string.Empty,
+                    ManagerID = row.Field<int?>("ManagerID") ?? 0,
+                    Amenities = row.Field<string>("Amenities") ?? string.Empty,
+                    Rating = row.Field<double?>("Rating") ?? 0,
+                    IsActive = row.Field<bool?>("IsActive") ?? false,
+                    ImageURL = row.Field<string>("ImageURL") ?? string.Empty
+                };
+                hotelList.Add(hotel);
             }
-            return hotelList;
-        }
-
-        public List<Hotel> GetAllHotels()
-        {
-            string fetchHotelsQuery = "SELECT * FROM [SmartHotelDB].[dbo].[Hotel] WHERE [IsActive] = 1";
-            DataTable dt = _dalObject.FetchData(fetchHotelsQuery);
-            List<Hotel> hotelList = ConvertDataTableToList(dt);
             return hotelList;
         }
     }
